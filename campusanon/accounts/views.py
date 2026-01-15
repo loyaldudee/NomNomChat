@@ -8,8 +8,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User, EmailOTP
 from .utils import send_email_otp, hash_email, generate_internal_username
 
+# ✅ Step 1️⃣ Import community helpers
+from communities.utils import (
+    get_or_create_global_community,
+    get_or_create_academic_community,
+    add_user_to_community,
+)
 
-COLLEGE_DOMAIN = "@aitpune.edu.in"  
+COLLEGE_DOMAIN = "@aitpune.edu.in"
 
 
 class SendOTPView(APIView):
@@ -18,7 +24,7 @@ class SendOTPView(APIView):
     def post(self, request):
         email = request.data.get("email")
 
-        if not email or not email.endswith("@aitpune.edu.in"):
+        if not email or not email.endswith(COLLEGE_DOMAIN):
             return Response(
                 {"error": "Invalid college email"},
                 status=400
@@ -66,6 +72,16 @@ class VerifyOTPView(APIView):
 
         if user.is_banned:
             return Response({"error": "User banned"}, status=403)
+
+        # ✅ Step 2️⃣ Auto-join communities
+        global_community = get_or_create_global_community()
+        academic_community = get_or_create_academic_community(
+            user.year,
+            user.branch
+        )
+
+        add_user_to_community(user, global_community)
+        add_user_to_community(user, academic_community)
 
         refresh = RefreshToken.for_user(user)
 
