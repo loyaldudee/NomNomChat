@@ -3,11 +3,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import Post
-from .utils import generate_alias
 from communities.models import Community
+from .models import Post, Comment
+from .utils import generate_alias
 
 
+# -------------------------------
+# CREATE POST
+# -------------------------------
 class CreatePostView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -18,13 +21,16 @@ class CreatePostView(APIView):
         if not community_id or not content:
             return Response(
                 {"error": "community_id and content required"},
-                status=400
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
             community = Community.objects.get(id=community_id)
         except Community.DoesNotExist:
-            return Response({"error": "Community not found"}, status=404)
+            return Response(
+                {"error": "Community not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         post = Post.objects.create(
             user=request.user,
@@ -33,15 +39,20 @@ class CreatePostView(APIView):
             alias=generate_alias(),
         )
 
-        return Response({
-            "id": str(post.id),
-            "alias": post.alias,
-            "content": post.content,
-            "created_at": post.created_at,
-        }, status=201)
+        return Response(
+            {
+                "id": str(post.id),
+                "alias": post.alias,
+                "content": post.content,
+                "created_at": post.created_at,
+            },
+            status=status.HTTP_201_CREATED
+        )
 
 
-
+# -------------------------------
+# COMMUNITY FEED
+# -------------------------------
 class CommunityFeedView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -51,7 +62,7 @@ class CommunityFeedView(APIView):
         except Community.DoesNotExist:
             return Response(
                 {"error": "Community not found"},
-                status=404
+                status=status.HTTP_404_NOT_FOUND
             )
 
         posts = (
@@ -68,4 +79,102 @@ class CommunityFeedView(APIView):
                 "created_at": p.created_at,
             }
             for p in posts
+        ])
+
+
+# -------------------------------
+# DELETE OWN POST
+# -------------------------------
+class DeletePostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if post.user != request.user:
+            return Response(
+                {"error": "Not allowed to delete this post"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        post.delete()
+
+        return Response(
+            {"message": "Post deleted successfully"},
+            status=status.HTTP_200_OK
+        )
+
+
+# -------------------------------
+# CREATE COMMENT
+# -------------------------------
+class CreateCommentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        content = request.data.get("content")
+
+        if not content:
+            return Response(
+                {"error": "content required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        comment = Comment.objects.create(
+            post=post,
+            user=request.user,
+            content=content,
+            alias=generate_alias(),
+        )
+
+        return Response(
+            {
+                "id": str(comment.id),
+                "alias": comment.alias,
+                "content": comment.content,
+                "created_at": comment.created_at,
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+# -------------------------------
+# LIST COMMENTS FOR A POST
+# -------------------------------
+class PostCommentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        comments = post.comments.all()
+
+        return Response([
+            {
+                "id": str(c.id),
+                "alias": c.alias,
+                "content": c.content,
+                "created_at": c.created_at,
+            }
+            for c in comments
         ])
