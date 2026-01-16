@@ -4,10 +4,11 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from communities.models import Community
-from .models import Post, Comment, PostLike
+from .models import Post, Comment, PostLike, PostReport
 from .utils import generate_alias
 
 
+REPORT_THRESHOLD = 3
 
 
 # -------------------------------
@@ -68,10 +69,11 @@ class CommunityFeedView(APIView):
             )
 
         posts = (
-            Post.objects
-            .filter(community_id=community_id)
-            .order_by("-created_at")[:50]
+        Post.objects
+        .filter(community_id=community_id, is_hidden=False)
+        .order_by("-created_at")[:50]
         )
+
 
         return Response([
         {
@@ -212,4 +214,49 @@ class ToggleLikeView(APIView):
         return Response({
             "liked": True,
             "likes_count": post.likes.count()
+        })
+
+
+
+class ReportPostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        reason = request.data.get("reason", "unspecified")
+
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if post.is_hidden:
+            return Response(
+                {"message": "Post already hidden"},
+                status=status.HTTP_200_OK
+            )
+
+        report, created = PostReport.objects.get_or_create(
+            post=post,
+            reporter=request.user,
+            defaults={"reason": reason}
+        )
+
+        if not created:
+            return Response(
+                {"message": "Already reported"},
+                status=status.HTTP_200_OK
+            )
+
+        # 🔒 Auto-hide logic
+        if post.reports.count() >= REPORT_THRESHOLD:
+            post.is_hidden = True
+            post.save()
+
+        return Response({
+            "message": "Reported successfully",
+            "reports_count": post.reports.count(),
+            "hidden": post.is_hidden
         })
