@@ -77,3 +77,14 @@ class CommentReport(models.Model):
 
     class Meta:
         unique_together = ("comment", "reporter")
+
+
+class RateLimit(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    action = models.CharField(max_length=30)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "action", "created_at"]),
+        ]

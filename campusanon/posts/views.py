@@ -4,16 +4,16 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from communities.models import Community
-from accounts.models import User  
-from .models import (             
+from accounts.models import User
+from .models import (
     Post,
     Comment,
     PostLike,
     PostReport,
     CommentReport,
 )
-from .utils import generate_alias
-from .permissions import IsAdminUser  # Assumes you created this file
+from .utils import generate_alias, is_rate_limited
+from .permissions import IsAdminUser
 
 REPORT_THRESHOLD = 3
 COMMENT_REPORT_THRESHOLD = 3
@@ -26,11 +26,23 @@ class CreatePostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # ✅ STEP 2: Security check for banned users
+        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Rate Limiting (3 posts per 5 minutes)
+        if is_rate_limited(
+            request.user,
+            action="create_post",
+            limit=3,
+            window_seconds=300
+        ):
+            return Response(
+                {"error": "Too many posts. Try again later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
             )
 
         community_id = request.data.get("community_id")
@@ -83,7 +95,6 @@ class CommunityFeedView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # ✅ STEP 4.2: Cleaner formatting
         posts = (
             Post.objects
             .filter(community_id=community_id, is_hidden=False)
@@ -138,11 +149,23 @@ class CreateCommentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        # ✅ STEP 2: Security check for banned users
+        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Rate Limiting (10 comments per 5 minutes)
+        if is_rate_limited(
+            request.user,
+            action="create_comment",
+            limit=10,
+            window_seconds=300
+        ):
+            return Response(
+                {"error": "Too many comments. Slow down."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
             )
 
         content = request.data.get("content")
@@ -212,11 +235,23 @@ class ToggleLikeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        # ✅ STEP 2: Security check for banned users
+        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Rate Limiting (30 likes per minute)
+        if is_rate_limited(
+            request.user,
+            action="like",
+            limit=30,
+            window_seconds=60
+        ):
+            return Response(
+                {"error": "Too many actions. Slow down."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
             )
 
         try:
@@ -250,11 +285,23 @@ class ReportPostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        # ✅ STEP 2: Security check for banned users
+        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Rate Limiting (5 reports per 10 minutes)
+        if is_rate_limited(
+            request.user,
+            action="report",
+            limit=5,
+            window_seconds=600
+        ):
+            return Response(
+                {"error": "Too many reports. Try later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
             )
 
         reason = request.data.get("reason", "unspecified")
@@ -301,11 +348,23 @@ class ReportCommentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, comment_id):
-        # ✅ STEP 2: Security check for banned users
+        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # 2. Rate Limiting (5 reports per 10 minutes)
+        if is_rate_limited(
+            request.user,
+            action="report",
+            limit=5,
+            window_seconds=600
+        ):
+            return Response(
+                {"error": "Too many reports. Try later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
             )
 
         reason = request.data.get("reason", "unspecified")
