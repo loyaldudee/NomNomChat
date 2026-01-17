@@ -4,10 +4,16 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from communities.models import Community
-from .models import Post, Comment, PostLike, PostReport
+from accounts.models import User  
+from .models import (             
+    Post,
+    Comment,
+    PostLike,
+    PostReport,
+    CommentReport,
+)
 from .utils import generate_alias
-from .models import CommentReport
-
+from .permissions import IsAdminUser  # Assumes you created this file
 
 REPORT_THRESHOLD = 3
 COMMENT_REPORT_THRESHOLD = 3
@@ -20,6 +26,13 @@ class CreatePostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # ✅ STEP 2: Security check for banned users
+        if request.user.is_banned:
+            return Response(
+                {"error": "User is banned"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         community_id = request.data.get("community_id")
         content = request.data.get("content")
 
@@ -70,24 +83,23 @@ class CommunityFeedView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # ✅ STEP 4.2: Cleaner formatting
         posts = (
-        Post.objects
-        .filter(community_id=community_id, is_hidden=False)
-        .order_by("-created_at")[:50]
+            Post.objects
+            .filter(community_id=community_id, is_hidden=False)
+            .order_by("-created_at")[:50]
         )
 
-
         return Response([
-        {
-            "id": str(p.id),
-            "alias": p.alias,
-            "content": p.content,
-            "created_at": p.created_at,
-            "likes_count": p.likes.count(),
-        }
-        for p in posts
-    ])
-
+            {
+                "id": str(p.id),
+                "alias": p.alias,
+                "content": p.content,
+                "created_at": p.created_at,
+                "likes_count": p.likes.count(),
+            }
+            for p in posts
+        ])
 
 
 # -------------------------------
@@ -126,6 +138,13 @@ class CreateCommentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
+        # ✅ STEP 2: Security check for banned users
+        if request.user.is_banned:
+            return Response(
+                {"error": "User is banned"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         content = request.data.get("content")
 
         if not content:
@@ -175,8 +194,8 @@ class PostCommentsView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Filter out hidden comments
         comments = post.comments.filter(is_hidden=False)
-
 
         return Response([
             {
@@ -193,6 +212,13 @@ class ToggleLikeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
+        # ✅ STEP 2: Security check for banned users
+        if request.user.is_banned:
+            return Response(
+                {"error": "User is banned"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
             post = Post.objects.get(id=post_id)
         except Post.DoesNotExist:
@@ -220,11 +246,17 @@ class ToggleLikeView(APIView):
         })
 
 
-
 class ReportPostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
+        # ✅ STEP 2: Security check for banned users
+        if request.user.is_banned:
+            return Response(
+                {"error": "User is banned"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         reason = request.data.get("reason", "unspecified")
 
         try:
@@ -265,11 +297,17 @@ class ReportPostView(APIView):
         })
 
 
-
 class ReportCommentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, comment_id):
+        # ✅ STEP 2: Security check for banned users
+        if request.user.is_banned:
+            return Response(
+                {"error": "User is banned"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         reason = request.data.get("reason", "unspecified")
 
         try:
@@ -308,3 +346,75 @@ class ReportCommentView(APIView):
             "reports_count": comment.reports.count(),
             "hidden": comment.is_hidden
         })
+
+
+class AdminUnhidePostView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        post.is_hidden = False
+        post.save()
+
+        return Response({"message": "Post unhidden"})
+
+
+class AdminUnhideCommentView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, comment_id):
+        try:
+            comment = Comment.objects.get(id=comment_id)
+        except Comment.DoesNotExist:
+            return Response(
+                {"error": "Comment not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        comment.is_hidden = False
+        comment.save()
+
+        return Response({"message": "Comment unhidden"})
+
+
+class AdminBanUserView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        user.is_banned = True
+        user.save()
+
+        return Response({"message": "User banned"})
+
+
+class AdminUnbanUserView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        user.is_banned = False
+        user.save()
+
+        return Response({"message": "User unbanned"})

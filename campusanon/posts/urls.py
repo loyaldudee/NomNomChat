@@ -8,6 +8,10 @@ from .views import (
     ToggleLikeView,
     ReportPostView,
     ReportCommentView,
+    AdminBanUserView,
+    AdminUnbanUserView,
+    AdminUnhidePostView,
+    AdminUnhideCommentView,
 )
 
 urlpatterns = [
@@ -25,6 +29,14 @@ urlpatterns = [
     path("report/<uuid:post_id>/", ReportPostView.as_view(), name="report-post"),
 
     path("comment/report/<uuid:comment_id>/", ReportCommentView.as_view(), name="report-comment"),
+
+     # Admin moderation
+    path("admin/user/ban/<uuid:user_id>/", AdminBanUserView.as_view(), name="admin-ban-user"),
+    path("admin/user/unban/<uuid:user_id>/", AdminUnbanUserView.as_view(), name="admin-unban-user"),
+
+    path("admin/post/unhide/<uuid:post_id>/", AdminUnhidePostView.as_view(), name="admin-unhide-post"),
+    path("admin/comment/unhide/<uuid:comment_id>/", AdminUnhideCommentView.as_view(), name="admin-unhide-comment"),
+
 
 
 
