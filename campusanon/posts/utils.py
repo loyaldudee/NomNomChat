@@ -2,6 +2,7 @@ import random
 from datetime import timedelta
 from django.utils import timezone
 from .models import RateLimit
+from campusanon.redis import redis_client
 
 
 def is_rate_limited(user, action, limit, window_seconds):
@@ -17,6 +18,25 @@ def is_rate_limited(user, action, limit, window_seconds):
         return True
 
     RateLimit.objects.create(user=user, action=action)
+    return False
+
+def is_rate_limited_redis(user_id, action, limit, window_seconds):
+    """
+    Redis-based fixed window rate limiter
+    """
+    key = f"rate:{action}:{user_id}"
+
+    current = redis_client.get(key)
+
+    if current is None:
+        # First action in window
+        redis_client.setex(key, window_seconds, 1)
+        return False
+
+    if int(current) >= limit:
+        return True
+
+    redis_client.incr(key)
     return False
 
 ADJECTIVES = [

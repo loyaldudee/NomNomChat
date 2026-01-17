@@ -14,13 +14,14 @@ from .models import (
     PostReport,
     CommentReport,
 )
-from .utils import generate_alias, is_rate_limited
+# ✅ UPDATED IMPORT: Using Redis limiter
+from .utils import generate_alias, is_rate_limited_redis
 from .permissions import IsAdminUser
 
 REPORT_THRESHOLD = 3
 COMMENT_REPORT_THRESHOLD = 3
 PAGE_SIZE = 20
-COMMENT_PAGE_SIZE = 20  # Added for comment pagination
+COMMENT_PAGE_SIZE = 20
 
 
 # -------------------------------
@@ -37,9 +38,10 @@ class CreatePostView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Rate Limiting (3 posts per 5 minutes)
-        if is_rate_limited(
-            request.user,
+        # 2. Redis Rate Limiting (3 posts per 5 minutes)
+        # ✅ FIX: Passing request.user.id (string/UUID) instead of object
+        if is_rate_limited_redis(
+            request.user.id,
             action="create_post",
             limit=3,
             window_seconds=300
@@ -111,7 +113,7 @@ class CommunityFeedView(APIView):
             if cursor_dt:
                 posts = posts.filter(created_at__lt=cursor_dt)
 
-        # ✅ FIX: Convert to list to support negative indexing
+        # Convert to list to support negative indexing
         posts = list(
             posts.order_by("-created_at")[:PAGE_SIZE]
         )
@@ -173,16 +175,15 @@ class CreateCommentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Rate Limiting (10 comments per 5 minutes)
-        if is_rate_limited(
-            request.user,
+        # 2. Redis Rate Limiting (10 comments per 5 minutes)
+        if is_rate_limited_redis(
+            request.user.id,
             action="create_comment",
             limit=10,
             window_seconds=300
@@ -252,7 +253,6 @@ class PostCommentsView(APIView):
             if cursor_dt:
                 comments = comments.filter(created_at__gt=cursor_dt)
 
-        # ✅ FIX: Convert to list for safe indexing
         comments = list(
             comments.order_by("created_at")[:COMMENT_PAGE_SIZE]
         )
@@ -281,16 +281,15 @@ class ToggleLikeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Rate Limiting (30 likes per minute)
-        if is_rate_limited(
-            request.user,
+        # 2. Redis Rate Limiting (30 likes per minute)
+        if is_rate_limited_redis(
+            request.user.id,
             action="like",
             limit=30,
             window_seconds=60
@@ -331,16 +330,15 @@ class ReportPostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Rate Limiting (5 reports per 10 minutes)
-        if is_rate_limited(
-            request.user,
+        # 2. Redis Rate Limiting (5 reports per 10 minutes)
+        if is_rate_limited_redis(
+            request.user.id,
             action="report",
             limit=5,
             window_seconds=600
@@ -394,16 +392,15 @@ class ReportCommentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, comment_id):
-        # 1. Security check for banned users
         if request.user.is_banned:
             return Response(
                 {"error": "User is banned"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # 2. Rate Limiting (5 reports per 10 minutes)
-        if is_rate_limited(
-            request.user,
+        # 2. Redis Rate Limiting (5 reports per 10 minutes)
+        if is_rate_limited_redis(
+            request.user.id,
             action="report",
             limit=5,
             window_seconds=600
