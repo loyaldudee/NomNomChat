@@ -570,3 +570,43 @@ class AdminAuditLogView(APIView):
             }
             for log in logs
         ])
+    
+
+class SearchPostsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # 🛡️ Ban Safety Check
+        if request.user.is_banned:
+            return Response(
+                {"error": "User is banned"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        query = request.query_params.get("q", "").strip()
+        community_id = request.query_params.get("community_id")
+
+        if not query:
+            return Response([], status=status.HTTP_200_OK)
+
+        posts = Post.objects.filter(
+            content__icontains=query,
+            is_hidden=False
+        )
+
+        if community_id:
+            posts = posts.filter(community_id=community_id)
+
+        posts = posts.order_by("-created_at")[:30]
+
+        return Response([
+            {
+                "id": str(p.id),
+                "alias": p.alias,
+                "content": p.content,
+                "created_at": p.created_at,
+                "likes_count": p.likes.count(),
+                "community_id": str(p.community_id),
+            }
+            for p in posts
+        ])

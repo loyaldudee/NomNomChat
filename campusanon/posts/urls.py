@@ -13,6 +13,7 @@ from .views import (
     AdminUnhidePostView,
     AdminUnhideCommentView,
     AdminAuditLogView,
+    SearchPostsView,
 )
 
 urlpatterns = [
@@ -38,4 +39,7 @@ urlpatterns = [
     path("admin/post/unhide/<uuid:post_id>/", AdminUnhidePostView.as_view(), name="admin-unhide-post"),
     path("admin/comment/unhide/<uuid:comment_id>/", AdminUnhideCommentView.as_view(), name="admin-unhide-comment"),
     path("admin/audit-logs/", AdminAuditLogView.as_view(), name="admin-audit-logs"),
+
+    # Search
+    path("search/", SearchPostsView.as_view(), name="search-posts"),
 ]
