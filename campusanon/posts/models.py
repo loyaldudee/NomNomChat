@@ -88,3 +88,32 @@ class RateLimit(models.Model):
         indexes = [
             models.Index(fields=["user", "action", "created_at"]),
         ]
+
+class AdminAuditLog(models.Model):
+    ACTION_CHOICES = [
+        ("BAN_USER", "Ban User"),
+        ("UNBAN_USER", "Unban User"),
+        ("UNHIDE_POST", "Unhide Post"),
+        ("UNHIDE_COMMENT", "Unhide Comment"),
+    ]
+
+    admin = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="admin_actions"
+    )
+
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+
+    target_id = models.UUIDField()
+    target_type = models.CharField(max_length=30)
+
+    reason = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.admin_id} → {self.action} ({self.target_type})"
+

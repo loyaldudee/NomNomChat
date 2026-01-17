@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 from .models import RateLimit
 from campusanon.redis import redis_client
+from .models import AdminAuditLog
 
 
 def is_rate_limited(user, action, limit, window_seconds):
@@ -38,6 +39,17 @@ def is_rate_limited_redis(user_id, action, limit, window_seconds):
 
     redis_client.incr(key)
     return False
+
+
+def log_admin_action(admin, action, target_id, target_type, reason=""):
+    AdminAuditLog.objects.create(
+        admin=admin,
+        action=action,
+        target_id=target_id,
+        target_type=target_type,
+        reason=reason
+    )
+
 
 ADJECTIVES = [
     "Silent", "Curious", "Hidden", "Lost", "Brave", "Witty", "Calm"

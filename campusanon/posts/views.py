@@ -13,9 +13,13 @@ from .models import (
     PostLike,
     PostReport,
     CommentReport,
+    AdminAuditLog,  # ✅ Imported Model
 )
-# ✅ UPDATED IMPORT: Using Redis limiter
-from .utils import generate_alias, is_rate_limited_redis
+from .utils import (
+    generate_alias, 
+    is_rate_limited_redis, 
+    log_admin_action  # ✅ Imported Helper
+)
 from .permissions import IsAdminUser
 
 REPORT_THRESHOLD = 3
@@ -38,8 +42,7 @@ class CreatePostView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Redis Rate Limiting (3 posts per 5 minutes)
-        # ✅ FIX: Passing request.user.id (string/UUID) instead of object
+        # 2. Redis Rate Limiting
         if is_rate_limited_redis(
             request.user.id,
             action="create_post",
@@ -113,7 +116,6 @@ class CommunityFeedView(APIView):
             if cursor_dt:
                 posts = posts.filter(created_at__lt=cursor_dt)
 
-        # Convert to list to support negative indexing
         posts = list(
             posts.order_by("-created_at")[:PAGE_SIZE]
         )
@@ -181,7 +183,7 @@ class CreateCommentView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Redis Rate Limiting (10 comments per 5 minutes)
+        # 2. Redis Rate Limiting
         if is_rate_limited_redis(
             request.user.id,
             action="create_comment",
@@ -244,10 +246,8 @@ class PostCommentsView(APIView):
 
         cursor = request.query_params.get("cursor")
 
-        # Filter out hidden comments
         comments = post.comments.filter(is_hidden=False)
 
-        # Cursor pagination logic for comments (ascending order)
         if cursor:
             cursor_dt = parse_datetime(cursor)
             if cursor_dt:
@@ -287,7 +287,7 @@ class ToggleLikeView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Redis Rate Limiting (30 likes per minute)
+        # 2. Redis Rate Limiting
         if is_rate_limited_redis(
             request.user.id,
             action="like",
@@ -313,7 +313,6 @@ class ToggleLikeView(APIView):
         )
 
         if not created:
-            # already liked → unlike
             like.delete()
             return Response({
                 "liked": False,
@@ -336,7 +335,7 @@ class ReportPostView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Redis Rate Limiting (5 reports per 10 minutes)
+        # 2. Redis Rate Limiting
         if is_rate_limited_redis(
             request.user.id,
             action="report",
@@ -376,7 +375,6 @@ class ReportPostView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        # 🔒 Auto-hide logic
         if post.reports.count() >= REPORT_THRESHOLD:
             post.is_hidden = True
             post.save()
@@ -398,7 +396,7 @@ class ReportCommentView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # 2. Redis Rate Limiting (5 reports per 10 minutes)
+        # 2. Redis Rate Limiting
         if is_rate_limited_redis(
             request.user.id,
             action="report",
@@ -438,7 +436,6 @@ class ReportCommentView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        # 🔒 Auto-hide after threshold
         if comment.reports.count() >= COMMENT_REPORT_THRESHOLD:
             comment.is_hidden = True
             comment.save()
@@ -465,6 +462,14 @@ class AdminUnhidePostView(APIView):
         post.is_hidden = False
         post.save()
 
+        # ✅ LOGGING
+        log_admin_action(
+            admin=request.user,
+            action="UNHIDE_POST",
+            target_id=post.id,
+            target_type="Post"
+        )
+
         return Response({"message": "Post unhidden"})
 
 
@@ -482,6 +487,14 @@ class AdminUnhideCommentView(APIView):
 
         comment.is_hidden = False
         comment.save()
+
+        # ✅ LOGGING
+        log_admin_action(
+            admin=request.user,
+            action="UNHIDE_COMMENT",
+            target_id=comment.id,
+            target_type="Comment"
+        )
 
         return Response({"message": "Comment unhidden"})
 
@@ -501,6 +514,15 @@ class AdminBanUserView(APIView):
         user.is_banned = True
         user.save()
 
+        # ✅ LOGGING
+        log_admin_action(
+            admin=request.user,
+            action="BAN_USER",
+            target_id=user.id,
+            target_type="User",
+            reason=request.data.get("reason", "")
+        )
+
         return Response({"message": "User banned"})
 
 
@@ -519,4 +541,32 @@ class AdminUnbanUserView(APIView):
         user.is_banned = False
         user.save()
 
+        # ✅ LOGGING
+        log_admin_action(
+            admin=request.user,
+            action="UNBAN_USER",
+            target_id=user.id,
+            target_type="User"
+        )
+
         return Response({"message": "User unbanned"})
+
+
+# ✅ NEW: Read-only Audit Log API
+class AdminAuditLogView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        logs = AdminAuditLog.objects.all()[:100]
+
+        return Response([
+            {
+                "admin_id": str(log.admin_id),
+                "action": log.action,
+                "target_type": log.target_type,
+                "target_id": str(log.target_id),
+                "reason": log.reason,
+                "created_at": log.created_at,
+            }
+            for log in logs
+        ])
