@@ -63,3 +63,10 @@ htmlcov/
 # Node (if using frontend tools)
 node_modules/
 npm-debug.log
+
+
+# Django
+*.pyc
+local_settings.py
+/staticfiles/  <-- This line prevents it from being committed
+/media/

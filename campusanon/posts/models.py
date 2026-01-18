@@ -16,8 +16,6 @@ class Post(models.Model):
     content = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
-
-    # ✅ Fix: Added is_hidden field so the feed can filter out hidden posts
     is_hidden = models.BooleanField(default=False)
 
     class Meta:
@@ -89,6 +87,8 @@ class RateLimit(models.Model):
             models.Index(fields=["user", "action", "created_at"]),
         ]
 
+
+# 👇 THIS WAS LIKELY MISSING
 class AdminAuditLog(models.Model):
     ACTION_CHOICES = [
         ("BAN_USER", "Ban User"),
@@ -116,4 +116,3 @@ class AdminAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.admin_id} → {self.action} ({self.target_type})"
-
