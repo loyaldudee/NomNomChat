@@ -190,16 +190,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Force Django to send emails via Gmail SMTP
 import os
-# 📧 EMAIL CONFIGURATION (Brevo Bypass Port)
+# 📧 EMAIL CONFIGURATION
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'
-
-# 🔓 USE PORT 2525 (Bypasses Cloud Firewalls)
 EMAIL_PORT = 2525
-EMAIL_USE_TLS = True   # MUST be True for 2525
-EMAIL_USE_SSL = False  # MUST be False
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 
-# Credentials
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+# Keep these reading from Environment (Do NOT change these)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# ⚠️ CRITICAL UPDATE: This must be your VERIFIED Brevo email
+DEFAULT_FROM_EMAIL = 'mayurrishi2004@gmail.com'
