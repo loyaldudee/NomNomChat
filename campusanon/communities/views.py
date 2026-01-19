@@ -2,57 +2,68 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-
-
-from .models import Community
-from .models import CommunityMembership
-
+from django.db.models import Q
+from .models import Community, CommunityMembership
 
 class MyCommunitiesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        memberships = CommunityMembership.objects.filter(user=request.user)
+        user = request.user
 
+        # 1. AUTOMATIC: Get communities matching User's Branch, Year, or Global
+        # Logic: (Global) OR (Matches Branch) OR (Matches Year)
+        auto_communities = Community.objects.filter(
+            Q(is_global=True) |
+            (
+                (Q(branch=user.branch) | Q(branch__isnull=True) | Q(branch='')) &
+                (Q(year=user.year) | Q(year__isnull=True))
+            )
+        ).exclude(
+            # Filter out "ghost" communities that have no settings
+            is_global=False, branch__isnull=True, year__isnull=True
+        )
+
+        # 2. MANUAL: Get communities the user specifically joined (e.g. Clubs)
+        joined_ids = CommunityMembership.objects.filter(
+            user=user
+        ).values_list('community_id', flat=True)
+        
+        manual_communities = Community.objects.filter(id__in=joined_ids)
+
+        # 3. COMBINE: Merge both lists and remove duplicates
+        all_communities = (auto_communities | manual_communities).distinct()
+
+        # 4. Serialize
         data = []
-        for m in memberships:
-            c = m.community
+        for c in all_communities:
             data.append({
                 "id": str(c.id),
                 "name": c.name,
                 "slug": c.slug,
                 "is_global": c.is_global,
+                "branch": c.branch, # Helpful for frontend to show subtitles
+                "year": c.year
             })
 
         return Response(data)
-
 
 class SearchCommunitiesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # 🛡️ Ban Safety Check
         if request.user.is_banned:
-            return Response(
-                {"error": "User is banned"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "User is banned"}, status=403)
 
         query = request.query_params.get("q", "").strip()
-
         if not query:
-            return Response([], status=status.HTTP_200_OK)
+            return Response([])
 
-        communities = Community.objects.filter(
-            name__icontains=query
-        )[:20]
+        communities = Community.objects.filter(name__icontains=query)[:20]
 
-        return Response([
-            {
-                "id": str(c.id),
-                "name": c.name,
-                "slug": c.slug,
-                "is_global": c.is_global,
-            }
-            for c in communities
-        ])
+        return Response([{
+            "id": str(c.id),
+            "name": c.name,
+            "slug": c.slug,
+            "is_global": c.is_global
+        } for c in communities])
