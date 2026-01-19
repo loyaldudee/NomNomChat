@@ -97,10 +97,12 @@ DATABASES = {
 # 🌐 8. CORS (Frontend Access)
 # =================================================
 # In production, specify your frontend domain explicitly
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # React Local Dev
-    "https://yourfrontend.com",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",  # React Local Dev
+#     "https://yourfrontend.com",
+# ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 # If you just want to allow everything during dev (NOT RECOMMENDED FOR PROD):
 # CORS_ALLOW_ALL_ORIGINS = DEBUG
