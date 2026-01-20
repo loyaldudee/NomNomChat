@@ -4,6 +4,7 @@ from .views import (
     CommunityFeedView,
     DeletePostView,
     CreateCommentView,
+    GetPostView,
     PostCommentsView,
     ToggleLikeView,
     ReportPostView,
@@ -21,6 +22,7 @@ urlpatterns = [
     path("create/", CreatePostView.as_view(), name="create-post"),
     path("feed/<uuid:community_id>/", CommunityFeedView.as_view(), name="community-feed"),
     path("delete/<uuid:post_id>/", DeletePostView.as_view(), name="delete-post"),
+    path("get/<uuid:post_id>/", GetPostView.as_view(), name="get-single-post"),
 
     # Comments
     path("comment/<uuid:post_id>/", CreateCommentView.as_view(), name="create-comment"),

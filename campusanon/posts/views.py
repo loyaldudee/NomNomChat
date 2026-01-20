@@ -340,6 +340,41 @@ class ToggleLikeView(APIView):
             "likes_count": post.likes.count()
         })
 
+class GetPostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, post_id):
+        # Subquery to check if user liked this specific post
+        is_liked_by_user = PostLike.objects.filter(
+            post=OuterRef('pk'),
+            user=request.user
+        )
+
+        try:
+            # We use filter() + first() instead of get() to allow annotation
+            post = Post.objects.filter(id=post_id).annotate(
+                total_likes=Count('likes'),
+                is_liked=Exists(is_liked_by_user)
+            ).first()
+            
+            if not post:
+                return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            return Response({
+                "id": str(post.id),
+                "alias": post.alias,
+                "content": post.content,
+                "created_at": post.created_at,
+                "likes_count": post.total_likes,
+                "is_liked": post.is_liked,
+                "community_id": str(post.community.id),
+                "community_name": post.community.name 
+            })
+
+        except Exception as e:
+            print(e)
+            return Response({"error": "Error fetching post"}, status=500)
+
 
 class ReportPostView(APIView):
     permission_classes = [IsAuthenticated]
