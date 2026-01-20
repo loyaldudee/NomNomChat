@@ -43,17 +43,17 @@ class CreatePostView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Redis Rate Limiting
-        if is_rate_limited_redis(
-            request.user.id,
-            action="create_post",
-            limit=3,
-            window_seconds=300
-        ):
-            return Response(
-                {"error": "Too many posts. Try again later."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS
-            )
+        # 🔴 TEMPORARY: Rate Limiting Disabled
+        # if is_rate_limited_redis(
+        #     request.user.id,
+        #     action="create_post",
+        #     limit=3,
+        #     window_seconds=300
+        # ):
+        #     return Response(
+        #         {"error": "Too many posts. Try again later."},
+        #         status=status.HTTP_429_TOO_MANY_REQUESTS
+        #     )
 
         community_id = request.data.get("community_id")
         content = request.data.get("content")
@@ -207,17 +207,17 @@ class CreateCommentView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. Redis Rate Limiting
-        if is_rate_limited_redis(
-            request.user.id,
-            action="create_comment",
-            limit=10,
-            window_seconds=300
-        ):
-            return Response(
-                {"error": "Too many comments. Slow down."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS
-            )
+        # 🔴 TEMPORARY: Rate Limiting Disabled
+        # if is_rate_limited_redis(
+        #     request.user.id,
+        #     action="create_comment",
+        #     limit=10,
+        #     window_seconds=300
+        # ):
+        #     return Response(
+        #         {"error": "Too many comments. Slow down."},
+        #         status=status.HTTP_429_TOO_MANY_REQUESTS
+        #     )
 
         content = request.data.get("content")
 
