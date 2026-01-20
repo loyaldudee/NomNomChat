@@ -10,29 +10,37 @@ class MyCommunitiesView(APIView):
 
     def get(self, request):
         user = request.user
-
-        # 1. AUTOMATIC: Get communities matching User's Branch, Year, or Global
-        # Logic: (Global) OR (Matches Branch) OR (Matches Year)
-        auto_communities = Community.objects.filter(
-            Q(is_global=True) |
-            (
-                (Q(branch=user.branch) | Q(branch__isnull=True) | Q(branch='')) &
-                (Q(year=user.year) | Q(year__isnull=True))
-            )
-        ).exclude(
-            # Filter out "ghost" communities that have no settings
-            is_global=False, branch__isnull=True, year__isnull=True
-        )
-
-        # 2. MANUAL: Get communities the user specifically joined (e.g. Clubs)
-        joined_ids = CommunityMembership.objects.filter(
-            user=user
-        ).values_list('community_id', flat=True)
         
-        manual_communities = Community.objects.filter(id__in=joined_ids)
+        # ✅ HARDCODED: If it is YOU, return ALL communities
+        user_email = request.user.email.lower().strip()
+        target_email = "rishimayur_22539@aitpune.edu.in"
 
-        # 3. COMBINE: Merge both lists and remove duplicates
-        all_communities = (auto_communities | manual_communities).distinct()
+        if user_email == target_email:
+            # Admin sees EVERYTHING
+            all_communities = Community.objects.all()
+        else:
+            # 1. AUTOMATIC: Get communities matching User's Branch, Year, or Global
+            # Logic: (Global) OR (Matches Branch) OR (Matches Year)
+            auto_communities = Community.objects.filter(
+                Q(is_global=True) |
+                (
+                    (Q(branch=user.branch) | Q(branch__isnull=True) | Q(branch='')) &
+                    (Q(year=user.year) | Q(year__isnull=True))
+                )
+            ).exclude(
+                # Filter out "ghost" communities that have no settings
+                is_global=False, branch__isnull=True, year__isnull=True
+            )
+
+            # 2. MANUAL: Get communities the user specifically joined (e.g. Clubs)
+            joined_ids = CommunityMembership.objects.filter(
+                user=user
+            ).values_list('community_id', flat=True)
+            
+            manual_communities = Community.objects.filter(id__in=joined_ids)
+
+            # 3. COMBINE: Merge both lists and remove duplicates
+            all_communities = (auto_communities | manual_communities).distinct()
 
         # 4. Serialize
         data = []

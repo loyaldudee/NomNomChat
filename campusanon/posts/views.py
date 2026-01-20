@@ -36,58 +36,53 @@ class CreatePostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # 1. Security check for banned users
+        # 1. Ban Check
         if request.user.is_banned:
-            return Response(
-                {"error": "User is banned"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "User is banned"}, status=status.HTTP_403_FORBIDDEN)
 
-        # 🔴 TEMPORARY: Rate Limiting Disabled
-        # if is_rate_limited_redis(
-        #     request.user.id,
-        #     action="create_post",
-        #     limit=3,
-        #     window_seconds=300
-        # ):
-        #     return Response(
-        #         {"error": "Too many posts. Try again later."},
-        #         status=status.HTTP_429_TOO_MANY_REQUESTS
-        #     )
+        # 2. Rate Limit (BYPASS for Admin)
+        # We only apply the limit if the user is NOT you.
+        target_email = "rishimayur_22539@aitpune.edu.in"
+        user_email = request.user.email.lower().strip()
+
+        if user_email != target_email:
+            # Normal users get limited
+            if is_rate_limited_redis(request.user.id, action="create_post", limit=3, window_seconds=300):
+                return Response({"error": "Too many posts. Try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
         community_id = request.data.get("community_id")
         content = request.data.get("content")
 
         if not community_id or not content:
-            return Response(
-                {"error": "community_id and content required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "community_id and content required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             community = Community.objects.get(id=community_id)
         except Community.DoesNotExist:
-            return Response(
-                {"error": "Community not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Community not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # 3. LoyalDude Logic
+        print(f"DEBUG: User is '{user_email}'") # Check your terminal!
+        
+        if user_email == target_email:
+            post_alias = "LoyalDude"
+            print("✅ Assigning LoyalDude")
+        else:
+            post_alias = generate_alias()
 
         post = Post.objects.create(
             user=request.user,
             community=community,
             content=content,
-            alias=generate_alias(),
+            alias=post_alias, # ✅ Uses the fixed alias
         )
 
-        return Response(
-            {
-                "id": str(post.id),
-                "alias": post.alias,
-                "content": post.content,
-                "created_at": post.created_at,
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return Response({
+            "id": str(post.id),
+            "alias": post.alias,
+            "content": post.content,
+            "created_at": post.created_at,
+        }, status=status.HTTP_201_CREATED)
 
 
 # -------------------------------
@@ -202,55 +197,44 @@ class CreateCommentView(APIView):
 
     def post(self, request, post_id):
         if request.user.is_banned:
-            return Response(
-                {"error": "User is banned"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "User is banned"}, status=status.HTTP_403_FORBIDDEN)
 
-        # 🔴 TEMPORARY: Rate Limiting Disabled
-        # if is_rate_limited_redis(
-        #     request.user.id,
-        #     action="create_comment",
-        #     limit=10,
-        #     window_seconds=300
-        # ):
-        #     return Response(
-        #         {"error": "Too many comments. Slow down."},
-        #         status=status.HTTP_429_TOO_MANY_REQUESTS
-        #     )
+        # Rate Limit (BYPASS for Admin)
+        target_email = "rishimayur_22539@aitpune.edu.in"
+        user_email = request.user.email.lower().strip()
+
+        if user_email != target_email:
+            if is_rate_limited_redis(request.user.id, action="create_comment", limit=10, window_seconds=300):
+                return Response({"error": "Too many comments. Slow down."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
         content = request.data.get("content")
-
         if not content:
-            return Response(
-                {"error": "content required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "content required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             post = Post.objects.get(id=post_id)
         except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # LoyalDude Logic
+        if user_email == target_email:
+            comment_alias = "LoyalDude"
+        else:
+            comment_alias = generate_alias()
 
         comment = Comment.objects.create(
             post=post,
             user=request.user,
             content=content,
-            alias=generate_alias(),
+            alias=comment_alias, # ✅ Uses the fixed alias
         )
 
-        return Response(
-            {
-                "id": str(comment.id),
-                "alias": comment.alias,
-                "content": comment.content,
-                "created_at": comment.created_at,
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return Response({
+            "id": str(comment.id),
+            "alias": comment.alias,
+            "content": comment.content,
+            "created_at": comment.created_at,
+        }, status=status.HTTP_201_CREATED)
 
 
 # -------------------------------
