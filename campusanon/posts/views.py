@@ -270,7 +270,16 @@ class PostCommentsView(APIView):
 
         cursor = request.query_params.get("cursor")
 
-        comments = post.comments.filter(is_hidden=False)
+        # 👇 1. Define the Subquery (Did I report this?)
+        is_reported_by_user = CommentReport.objects.filter(
+            comment=OuterRef('pk'),
+            reporter=request.user
+        )
+
+        # 👇 2. Filter & Annotate
+        comments = post.comments.filter(is_hidden=False).annotate(
+            is_reported=Exists(is_reported_by_user)
+        )
 
         if cursor:
             cursor_dt = parse_datetime(cursor)
@@ -281,14 +290,15 @@ class PostCommentsView(APIView):
             comments.order_by("created_at")[:COMMENT_PAGE_SIZE]
         )
 
+        # 👇 3. Send "is_reported" and "is_mine" to frontend
         data = [
             {
                 "id": str(c.id),
                 "alias": c.alias,
                 "content": c.content,
                 "created_at": c.created_at,
-                # ✅ NEW: Check ownership
-                "is_mine": c.user_id == request.user.id 
+                "is_mine": c.user_id == request.user.id,
+                "is_reported": c.is_reported  # ✅ Checks if user reported it
             }
             for c in comments
         ]

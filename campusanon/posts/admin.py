@@ -31,8 +31,19 @@ class PostAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('alias', 'post', 'is_hidden', 'created_at')
+    # ✅ Added 'reports_count'
+    list_display = ('alias', 'post', 'is_hidden', 'created_at', 'reports_count')
     list_filter = ('is_hidden',)
+    
+    # ✅ Optimize query to count reports
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(total_reports=Count('reports'))
+
+    # ✅ Define the column
+    @admin.display(description='Reports', ordering='total_reports')
+    def reports_count(self, obj):
+        return obj.total_reports
 
 @admin.register(PostReport)
 class PostReportAdmin(admin.ModelAdmin):
