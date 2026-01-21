@@ -94,6 +94,10 @@ class CreatePostView(APIView):
             "alias": post.alias,
             "content": post.content,
             "created_at": post.created_at,
+            "is_mine": True,            # 👈 ADD THIS LINE
+            "is_liked": False,          # 👈 Good to have default
+            "likes_count": 0,           # 👈 Good to have default
+            "is_reported": False        # 👈 Good to have default
         }, status=status.HTTP_201_CREATED)
 
 
@@ -264,6 +268,8 @@ class CreateCommentView(APIView):
             "alias": comment.alias,
             "content": comment.content,
             "created_at": comment.created_at,
+            "is_mine": True,            # 👈 ADD THIS LINE
+            "is_reported": False        # 👈 Good to have default
         }, status=status.HTTP_201_CREATED)
 
 
