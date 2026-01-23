@@ -107,14 +107,17 @@ class LeaderboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # ✅ FIX: Django says the field is named 'post' (singular)
+        # ✅ NOW CONSISTENT: Counts Posts AND Likes
         communities = Community.objects.filter(is_global=False).annotate(
-            total_posts=Count('post') 
+            total_posts=Count('post', distinct=True),
+            # Count the total number of likes across all posts in this community
+            total_likes=Count('post__likes', distinct=True) 
         ).order_by('-total_posts')
 
         data = []
         for index, c in enumerate(communities):
-            score = c.total_posts * 10
+            # ✅ Formula: (Posts * 10) + (Likes * 1)
+            score = (c.total_posts * 10) + (c.total_likes * 1)
             
             data.append({
                 "id": str(c.id),
@@ -123,9 +126,16 @@ class LeaderboardView(APIView):
                 "rank": index + 1,
                 "stats": {
                     "posts": c.total_posts,
-                    "comments": 0 
+                    "likes": c.total_likes # Added this just in case you want to show it
                 }
             })
+        
+        # Sort Python list just in case the score formula changes the order
+        data.sort(key=lambda x: x['score'], reverse=True)
+
+        # Re-assign ranks after sorting by Score (not just posts)
+        for i, item in enumerate(data):
+            item['rank'] = i + 1
 
         return Response(data)
 
