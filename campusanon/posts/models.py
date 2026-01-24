@@ -15,9 +15,19 @@ class Post(models.Model):
 
     content = models.TextField()
 
+    # ✅ NEW FIELD: Post Type
+    POST_TYPES = [
+        ('text', 'Standard Text'),
+        ('confession', 'Confession'),
+        ('question', 'Question'),
+        ('rant', 'Rant'),
+        ('shoutout', 'Shoutout'),
+        ('event', 'Event'),
+    ]
+    post_type = models.CharField(max_length=20, choices=POST_TYPES, default='text')
+
     created_at = models.DateTimeField(auto_now_add=True)
     is_hidden = models.BooleanField(default=False)
-
     class Meta:
         ordering = ["-created_at"]
 

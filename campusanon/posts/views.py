@@ -71,6 +71,8 @@ class CreatePostView(APIView):
         community_id = request.data.get("community_id")
         content = request.data.get("content")
 
+        post_type = request.data.get("post_type", "text")
+
         if not community_id or not content:
             return Response({"error": "Data required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -90,13 +92,15 @@ class CreatePostView(APIView):
             user=request.user,
             community=community,
             content=content,
-            alias=post_alias, 
+            alias=post_alias,
+            post_type=post_type, 
         )
 
         return Response({
             "id": str(post.id),
             "alias": post.alias,
             "content": post.content,
+            "post_type": post.post_type,
             "created_at": post.created_at,
             "is_mine": True,            # 👈 ADD THIS LINE
             "is_liked": False,          # 👈 Good to have default
@@ -199,6 +203,7 @@ class CommunityFeedView(APIView):
                 "id": str(p.id),
                 "alias": p.alias,
                 "content": p.content,
+                "post_type": p.post_type,
                 "created_at": p.created_at,
                 "likes_count": p.total_likes,
                 "is_liked": p.is_liked,
@@ -453,6 +458,7 @@ class GetPostView(APIView):
             "id": str(post.id),
             "alias": post.alias,
             "content": post.content,
+            "post_type": post.post_type,
             "created_at": post.created_at,
             "likes_count": post.total_likes,
             "is_liked": post.is_liked,
@@ -765,6 +771,7 @@ class SearchPostsView(APIView):
                 "id": str(p.id),
                 "alias": p.alias,
                 "content": p.content,
+                "post_type": p.post_type,
                 "created_at": p.created_at,
                 "likes_count": p.total_likes,
                 "is_liked": p.is_liked,       # ✅ Interactive Heart
