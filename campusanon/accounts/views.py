@@ -46,7 +46,7 @@ class VerifyOTPView(APIView):
         
         # New Registration Fields
         year = request.data.get("year")
-        branch = request.data.get("branch")     # e.g. "Computer" or "COMP"
+        branch = request.data.get("branch")
         division = request.data.get("division") # e.g. "A", "B", or ""/None
 
         if not raw_email or not otp:
@@ -54,7 +54,7 @@ class VerifyOTPView(APIView):
 
         email = raw_email.strip().lower()
 
-        # 2. Verify OTP Logic (Standard)
+        # 2. Verify OTP
         record = EmailOTP.objects.filter(email=email).first()
         if not record:
             return Response({"error": "No OTP found"}, status=400)
@@ -68,32 +68,29 @@ class VerifyOTPView(APIView):
             record.save()
             return Response({"error": "Invalid OTP"}, status=400)
 
-        # 3. OTP is Valid! Handle User.
+        # 3. Handle User
         email_hash = hash_email(email)
         user_exists = User.objects.filter(email_hash=email_hash).exists()
 
         if not user_exists:
-            # Registration: Year & Branch are MANDATORY
+            # --- REGISTRATION FLOW (Strict & Precise) ---
             if not year or not branch:
                  return Response({"error": "Year and Branch are required for new users"}, status=400)
             
-            # Map Full Names to Short Codes (if frontend sends full names)
+            # Map Full Names to Short Codes
             BRANCH_MAP = {
                 "Computer": "COMP",
                 "Information Technology": "IT",
                 "E&TC": "ENTC",
                 "ENTC": "ENTC",
                 "Mechanical": "MECH",
-                "ASGE": "ARE", # Automation & Robotics
+                "ASGE": "ARE",
                 "ARE": "ARE"
             }
-            clean_branch = BRANCH_MAP.get(branch, branch) # Fallback to input if not in map
-
-            # Normalize Division (ensure it's None if empty string)
+            clean_branch = BRANCH_MAP.get(branch, branch)
             clean_div = division if division in ['A', 'B'] else None
 
-            # 🛑 CRITICAL: Check if Community Exists BEFORE Creating User
-            # We don't want to create a user if they selected an invalid community
+            # 🛑 Lookup the EXACT community (e.g. "1st Year COMP A")
             try:
                 target_community = Community.objects.get(
                     year=year,
@@ -102,7 +99,7 @@ class VerifyOTPView(APIView):
                 )
             except Community.DoesNotExist:
                 return Response(
-                    {"error": f"Invalid Class: {year} {clean_branch} {clean_div or ''} does not exist."},
+                    {"error": f"Class {year} {clean_branch} {clean_div or ''} not found."},
                     status=400
                 )
 
@@ -111,14 +108,15 @@ class VerifyOTPView(APIView):
                 email_hash=email_hash,
                 year=int(year),
                 branch=clean_branch,
-                # We can store division in user model if you want, but community membership is enough
+                # We don't store division on User, but that's okay because...
+                # ...we are adding them to the correct community RIGHT NOW.
                 internal_username=generate_internal_username()
             )
 
-            # ✅ Add to the STRICT Community
+            # ✅ Add to the Specific Division
             CommunityMembership.objects.create(user=user, community=target_community)
             
-            # ✅ Add to Global Community (Safe lookup)
+            # ✅ Add to Global
             global_comm = Community.objects.filter(is_global=True).first()
             if global_comm:
                 CommunityMembership.objects.get_or_create(user=user, community=global_comm)
@@ -126,15 +124,26 @@ class VerifyOTPView(APIView):
             is_new_user = True
 
         else:
-            # Login: Just get the user
+            # --- LOGIN FLOW (Trust existing memberships) ---
             user = User.objects.get(email_hash=email_hash)
             if user.is_banned:
                 return Response({"error": "This account has been banned."}, status=403)
+            
+            # 💡 IMPORTANT: We REMOVED the "Auto-Join Academic" block here.
+            # Since the User model doesn't store 'division', we can't reliably 
+            # know if they are 'A' or 'B' during login.
+            # We trust the membership we created during registration.
+            
+            # Ensure Global is still there (safe fallback)
+            global_comm = Community.objects.filter(is_global=True).first()
+            if global_comm:
+                 CommunityMembership.objects.get_or_create(user=user, community=global_comm)
+
             is_new_user = False
 
         # 4. Generate Tokens
         refresh = RefreshToken.for_user(user)
-        record.delete() # Cleanup OTP
+        record.delete()
 
         return Response({
             "message": "Login successful",
