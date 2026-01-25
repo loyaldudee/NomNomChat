@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'corsheaders',  # 🌐 8. CORS
 
     # Local Apps
-    'accounts',
+    'accounts.apps.AccountsConfig',
     'communities',
     'posts',
 ]

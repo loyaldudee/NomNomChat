@@ -14,6 +14,18 @@ logger = logging.getLogger(__name__)
 email_executor = ThreadPoolExecutor(max_workers=3)
 
 
+def shutdown_email_executor():
+    """
+    Properly shutdown the ThreadPoolExecutor to prevent resource leaks.
+    This function is called during application shutdown via atexit handler.
+    """
+    global email_executor
+    if email_executor:
+        logger.info("Shutting down email executor...")
+        email_executor.shutdown(wait=True)
+        logger.info("Email executor shutdown complete")
+
+
 def generate_internal_username():
     return "user_" + "".join(
         random.choices(string.ascii_lowercase + string.digits, k=8)
