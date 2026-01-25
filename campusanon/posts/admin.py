@@ -4,12 +4,28 @@ from .models import Post, Comment, PostReport, CommentReport, AdminAuditLog, Pos
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
-    list_display = ('alias', 'community', 'is_hidden', 'created_at', 'short_content', 'likes_count', 'reports_count')
-    list_filter = ('is_hidden', 'community')
+    # ✅ Added 'post_type' to the columns list
+    list_display = (
+        'alias', 
+        'community', 
+        'post_type',      # 👈 NEW COLUMN
+        'is_hidden', 
+        'created_at', 
+        'short_content', 
+        'likes_count', 
+        'reports_count'
+    )
+    
+    # ✅ Added 'post_type' to the sidebar filters
+    list_filter = (
+        'is_hidden', 
+        'community', 
+        'post_type'       # 👈 NEW FILTER SECTION
+    )
+    
     search_fields = ('content', 'alias')
     
-    # ✅ 1. ALLOW MANUAL EDITING
-    # This adds a toggle switch directly in the list view
+    # Allow quick toggling of hidden status
     list_editable = ('is_hidden',) 
     
     def short_content(self, obj):
@@ -17,8 +33,6 @@ class PostAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        # ✅ 2. FIX DOUBLE COUNTING
-        # distinct=True prevents the "multiplication" of rows
         return queryset.annotate(
             total_likes=Count('likes', distinct=True),
             total_reports=Count('reports', distinct=True)
@@ -31,18 +45,17 @@ class PostAdmin(admin.ModelAdmin):
     @admin.display(description='Reports', ordering='total_reports')
     def reports_count(self, obj):
         return obj.total_reports
+
+# ... (Keep CommentAdmin, PostReportAdmin, etc. unchanged)
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    # ✅ Added 'reports_count'
     list_display = ('alias', 'post', 'is_hidden', 'created_at', 'reports_count')
     list_filter = ('is_hidden',)
     
-    # ✅ Optimize query to count reports
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         return queryset.annotate(total_reports=Count('reports'))
 
-    # ✅ Define the column
     @admin.display(description='Reports', ordering='total_reports')
     def reports_count(self, obj):
         return obj.total_reports
@@ -51,7 +64,6 @@ class CommentAdmin(admin.ModelAdmin):
 class PostReportAdmin(admin.ModelAdmin):
     list_display = ('reporter', 'post', 'reason', 'created_at')
 
-# ✅ NEW: Register CommentReport so you can see it in Admin
 @admin.register(CommentReport)
 class CommentReportAdmin(admin.ModelAdmin):
     list_display = ('reporter', 'comment', 'reason', 'created_at')
