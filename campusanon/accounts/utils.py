@@ -20,7 +20,7 @@ def shutdown_email_executor():
     This function is called during application shutdown via atexit handler.
     """
     global email_executor
-    if email_executor:
+    if email_executor and not email_executor._shutdown:
         logger.info("Shutting down email executor...")
         email_executor.shutdown(wait=True)
         logger.info("Email executor shutdown complete")
