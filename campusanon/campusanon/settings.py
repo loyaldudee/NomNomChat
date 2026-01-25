@@ -89,7 +89,7 @@ DATABASES = {
         conn_max_age=600,
         # 👇 CHANGE THIS LINE
         # This checks for a specific env variable. If it's missing, it defaults to False.
-        ssl_require=os.getenv('DB_SSL_MODE') == 'True' 
+        ssl_require=os.getenv('DB_SSL_MODE') == 'True'
     )
 }
 
@@ -214,8 +214,11 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 # Keep these reading from Environment (Do NOT change these)
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+
+
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
 
 # ⚠️ CRITICAL UPDATE: This must be your VERIFIED Brevo email
 DEFAULT_FROM_EMAIL = 'mayurrishi2004@gmail.com'
