@@ -29,8 +29,13 @@ def hash_email(email: str) -> str:
 
 def _send_email_sync(email, otp):
     try:
+        api_key = getattr(settings, "BREVO_API_KEY", None)
+        if not api_key:
+            logger.error("BREVO_API_KEY is not configured. Unable to send emails.")
+            raise RuntimeError("BREVO_API_KEY is not configured. Set it in your environment or settings.")
+
         configuration = sib_api_v3_sdk.Configuration()
-        configuration.api_key['api-key'] = settings.BREVO_API_KEY
+        configuration.api_key['api-key'] = api_key
 
         api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
             sib_api_v3_sdk.ApiClient(configuration)
