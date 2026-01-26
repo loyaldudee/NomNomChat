@@ -9,6 +9,8 @@ from .utils import send_email_otp, hash_email, generate_internal_username
 
 # ✅ Import Community Models directly for strict lookup
 from communities.models import Community, CommunityMembership
+from posts.models import Notification
+
 
 COLLEGE_DOMAIN = "@aitpune.edu.in"
 
@@ -140,7 +142,7 @@ class VerifyOTPView(APIView):
                  CommunityMembership.objects.get_or_create(user=user, community=global_comm)
 
             is_new_user = False
-
+        Notification.objects.filter(recipient=user).delete()
         # 4. Generate Tokens
         refresh = RefreshToken.for_user(user)
         record.delete()

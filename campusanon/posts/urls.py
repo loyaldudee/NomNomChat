@@ -15,6 +15,9 @@ from .views import (
     AdminUnhideCommentView,
     AdminAuditLogView,
     SearchPostsView,
+    NotificationListView,
+    MarkNotificationReadView,
+    DeleteNotificationView
 )
 
 urlpatterns = [
@@ -44,4 +47,10 @@ urlpatterns = [
 
     # Search
     path("search/", SearchPostsView.as_view(), name="search-posts"),
+
+
+    # ✅ NEW NOTIFICATION ENDPOINTS
+    path("notifications/", NotificationListView.as_view(), name="list-notifications"),
+    path("notifications/read/<uuid:notification_id>/", MarkNotificationReadView.as_view(), name="mark-read"),
+    path("notifications/delete/<uuid:notification_id>/", DeleteNotificationView.as_view(), name="delete-notification"),
 ]

@@ -19,6 +19,7 @@ from .models import (
     PostReport,
     CommentReport,
     AdminAuditLog,  # ✅ Imported Model
+    Notification,
 )
 from .utils import (
     generate_alias, 
@@ -781,3 +782,48 @@ class SearchPostsView(APIView):
             }
             for p in posts
         ])
+    
+
+
+class NotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Fetch notifications for THIS user
+        notifs = Notification.objects.filter(recipient=request.user)
+        
+        data = []
+        for n in notifs:
+            data.append({
+                "id": str(n.id),
+                "actor_alias": n.actor.internal_username, # Or generate a random alias if you prefer privacy
+                "verb": n.verb, # 'like' or 'comment'
+                "post_id": str(n.post.id), # Frontend uses this to navigate
+                "is_read": n.is_read,
+                "created_at": n.created_at
+            })
+            
+        return Response(data)
+
+class MarkNotificationReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id):
+        try:
+            n = Notification.objects.get(id=notification_id, recipient=request.user)
+            n.is_read = True
+            n.save()
+            return Response({"success": True})
+        except Notification.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)
+
+class DeleteNotificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, notification_id):
+        try:
+            n = Notification.objects.get(id=notification_id, recipient=request.user)
+            n.delete()
+            return Response({"success": True})
+        except Notification.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)

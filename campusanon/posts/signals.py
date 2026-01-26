@@ -1,6 +1,6 @@
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import PostReport, CommentReport
+from .models import PostReport, CommentReport, PostLike, Comment, Notification # ✅ Import Notification
 
 # We match the thresholds from your views.py
 REPORT_THRESHOLD = 3
@@ -27,3 +27,31 @@ def check_comment_reports_on_delete(sender, instance, **kwargs):
         comment.is_hidden = False
         comment.save()
         print(f"✅ Auto-unhidden Comment {comment.alias} (Reports dropped to {count})")
+
+
+
+@receiver(post_save, sender=PostLike)
+def notify_on_like(sender, instance, created, **kwargs):
+    if created:
+        post = instance.post
+        # Don't notify if I like my own post
+        if instance.user != post.user:
+            Notification.objects.create(
+                recipient=post.user,
+                actor=instance.user,
+                verb='like',
+                post=post
+            )
+
+@receiver(post_save, sender=Comment)
+def notify_on_comment(sender, instance, created, **kwargs):
+    if created:
+        post = instance.post
+        # Don't notify if I comment on my own post
+        if instance.user != post.user:
+             Notification.objects.create(
+                recipient=post.user,
+                actor=instance.user,
+                verb='comment',
+                post=post
+            )
