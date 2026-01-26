@@ -1,14 +1,14 @@
 from django.contrib import admin
 from django.db.models import Count
-from .models import Post, Comment, PostReport, CommentReport, AdminAuditLog, PostLike
+# ✅ Added 'Notification' to the imports
+from .models import Post, Comment, PostReport, CommentReport, AdminAuditLog, PostLike, Notification 
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
-    # ✅ Added 'post_type' to the columns list
     list_display = (
         'alias', 
         'community', 
-        'post_type',      # 👈 NEW COLUMN
+        'post_type',
         'is_hidden', 
         'created_at', 
         'short_content', 
@@ -16,16 +16,13 @@ class PostAdmin(admin.ModelAdmin):
         'reports_count'
     )
     
-    # ✅ Added 'post_type' to the sidebar filters
     list_filter = (
         'is_hidden', 
         'community', 
-        'post_type'       # 👈 NEW FILTER SECTION
+        'post_type'
     )
     
     search_fields = ('content', 'alias')
-    
-    # Allow quick toggling of hidden status
     list_editable = ('is_hidden',) 
     
     def short_content(self, obj):
@@ -77,3 +74,11 @@ class AuditLogAdmin(admin.ModelAdmin):
 class PostLikeAdmin(admin.ModelAdmin):
     list_display = ('user', 'post', 'created_at')
     list_filter = ('created_at',)
+
+# ✅ NEW: Notification Admin Section
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('recipient', 'actor', 'verb', 'is_read', 'created_at')
+    list_filter = ('is_read', 'verb', 'created_at')  # Filter by Read Status & Type
+    search_fields = ('recipient__username', 'actor__username')  # Search by users
+    list_per_page = 50  # Notifications can be many, pagination helps
