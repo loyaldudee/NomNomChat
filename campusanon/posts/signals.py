@@ -56,4 +56,4 @@ def notify_on_comment(sender, instance, created, **kwargs):
                 verb='comment',
                 post=post
             )
-             ache.set(f"has_notif_{post.user.id}", True, timeout=86400)
+             cache.set(f"has_notif_{post.user.id}", True, timeout=86400)
