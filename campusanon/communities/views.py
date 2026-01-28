@@ -218,7 +218,7 @@ class LeaderboardView(APIView):
         # ---------------------------------------------------------
         # 4. SAVE TO CACHE
         # ---------------------------------------------------------
-        cache.set(cache_key, response_data, timeout=300)
+        cache.set(cache_key, response_data, timeout=90)
 
         return Response(response_data)
 
